@@ -1,6 +1,6 @@
 # Silero-VAD V5 in Rust (based on LibTorch)
 
-This is a Rust implementation of Silero-VAD V5, **rewritten by Claude from the original Python version**. Silero-VAD is a Voice Activity Detection (VAD) system that can detect speech segments in audio files, separating speech from silence and noise.
+This is a Rust implementation of [Silero-VAD V5](https://github.com/snakers4/silero-vad), **rewritten by Claude from the original Python version**. Silero-VAD is a Voice Activity Detection (VAD) system that can detect speech segments in audio files, separating speech from silence and noise.
 
 The implementation uses LibTorch for PyTorch model inference and maintains full compatibility with the original Python version's results. It provides the same functionality including speech detection, timestamp generation, and configurable parameters for different use cases.
 

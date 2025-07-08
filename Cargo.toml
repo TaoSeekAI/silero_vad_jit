@@ -3,6 +3,12 @@ name = "silero_vad_jit"
 version = "0.1.0"
 edition = "2024"
 
+description = "A Silero_vad inference lib in Rust base on pytorch"
+license = "MIT"
+repository = "https://github.com/second-state/silero_vad_jit"
+authors = ["csh <458761603@qq.com>"]
+
+
 [dependencies]
 tch = { version = "0.17.0" }
 log = { version = "0.4" }
