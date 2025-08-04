@@ -90,6 +90,8 @@ pub enum SileroVadErr {
     TchError(#[from] tch::TchError),
     #[error("Invalid sampling rate: {0}")]
     InvalidSamplingRate(String),
+    #[error("Invalid chunk size: {0}")]
+    InvalidChunkSize(String),
 }
 
 impl<VAD: VadModel> From<VAD> for SileroVad<VAD> {
@@ -325,6 +327,95 @@ impl<VAD: VadModel> SileroVad<VAD> {
             let bar = "█".repeat(bar_length);
             println!("{:7.2} | {:.3} | {}", time, prob, bar);
         }
+    }
+}
+
+pub enum VadEvent {
+    SpeechStart,
+    SpeechEnd,
+}
+
+pub struct StreamingVad<VAD: VadModel> {
+    vad: SileroVad<VAD>,
+    params: VadParams,
+    triggered: bool,
+    started: usize,
+}
+
+impl<VAD: VadModel> StreamingVad<VAD> {
+    pub fn new(mut vad: SileroVad<VAD>, params: VadParams) -> Self {
+        vad.model.reset_states();
+        Self {
+            vad,
+            params,
+            triggered: false,
+            started: 0,
+        }
+    }
+
+    pub fn get_window_size_samples(&self) -> usize {
+        if self.params.sampling_rate == 16000 {
+            512
+        } else {
+            256
+        }
+    }
+
+    pub fn process_chunk(&mut self, chunk: &[f32]) -> Result<Option<VadEvent>, SileroVadErr> {
+        let window_size_samples = self.get_window_size_samples();
+        if chunk.len() != window_size_samples {
+            return Err(SileroVadErr::InvalidChunkSize(format!(
+                "Chunk size must be {}",
+                window_size_samples
+            )));
+        }
+
+        let speech_prob = self.vad.model.predict(chunk, self.params.sampling_rate)?;
+
+        let neg_threshold = self
+            .params
+            .neg_threshold
+            .unwrap_or_else(|| (self.params.threshold - 0.15).max(0.01));
+
+        if speech_prob >= self.params.threshold {
+            let triggered_ = self.triggered;
+            self.triggered = true;
+            self.started += window_size_samples;
+            if !triggered_ {
+                return Ok(Some(VadEvent::SpeechStart));
+            } else {
+                // Already triggered, just continue accumulating
+                return Ok(None);
+            }
+        } else if speech_prob < neg_threshold {
+            let min_speech_samples = (self.params.sampling_rate as f32
+                * self.params.min_speech_duration_ms as f32
+                / 1000.0) as usize;
+            if self.triggered {
+                if self.started >= min_speech_samples {
+                    self.triggered = false;
+                    return Ok(Some(VadEvent::SpeechEnd));
+                } else {
+                    // Not enough speech detected, continue accumulating
+                    self.started += window_size_samples;
+                    return Ok(None);
+                }
+            } else {
+                // Not triggered, just continue accumulating
+                return Ok(None);
+            }
+        } else {
+            if self.triggered {
+                // Still triggered, continue accumulating
+                self.started += window_size_samples;
+            }
+            return Ok(None);
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.vad.model.reset_states();
+        self.triggered = false;
     }
 }
 
