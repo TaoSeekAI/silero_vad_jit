@@ -10,6 +10,6 @@ authors = ["csh <458761603@qq.com>"]
 
 
 [dependencies]
-tch = { version = "0.17.0" }
+tch = { version = "0.20.0" }
 log = { version = "0.4" }
 thiserror = "2.0.12"
